@@ -27,30 +27,34 @@ const EyeOffIcon = (props: React.SVGProps<SVGSVGElement>) => (
 interface LoginProps {
     onLoginSuccess: (user: User) => void;
     users: User[];
+    signIn: (email: string, password: string) => Promise<User | null>;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, users, signIn }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            const user = users.find(u => u.email === email && u.password === password);
+        try {
+            const user = await signIn(email, password);
             if (user) {
                 onLoginSuccess(user);
             } else {
                 setError('Username atau kata sandi salah.');
             }
+        } catch (error) {
+            console.error('Login error:', error);
+            setError('Terjadi kesalahan saat login. Silakan coba lagi.');
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     return (

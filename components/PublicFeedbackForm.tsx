@@ -6,6 +6,7 @@ import { StarIcon } from '../constants';
 
 interface PublicFeedbackFormProps {
     setClientFeedback: React.Dispatch<React.SetStateAction<ClientFeedback[]>>;
+    createFeedback?: (feedback: Omit<ClientFeedback, 'id'>) => Promise<ClientFeedback>;
 }
 
 const getSatisfactionFromRating = (rating: number): SatisfactionLevel => {
@@ -15,7 +16,7 @@ const getSatisfactionFromRating = (rating: number): SatisfactionLevel => {
     return SatisfactionLevel.UNSATISFIED;
 };
 
-const PublicFeedbackForm: React.FC<PublicFeedbackFormProps> = ({ setClientFeedback }) => {
+const PublicFeedbackForm: React.FC<PublicFeedbackFormProps> = ({ setClientFeedback, createFeedback }) => {
     const [formState, setFormState] = useState({
         clientName: '',
         rating: 0,
@@ -42,7 +43,7 @@ const PublicFeedbackForm: React.FC<PublicFeedbackFormProps> = ({ setClientFeedba
         setIsSubmitting(true);
 
         const newFeedback: ClientFeedback = {
-            id: `FB-PUB-${Date.now()}`,
+            id: crypto.randomUUID(),
             clientName: formState.clientName,
             rating: formState.rating,
             satisfaction: getSatisfactionFromRating(formState.rating),
@@ -50,8 +51,16 @@ const PublicFeedbackForm: React.FC<PublicFeedbackFormProps> = ({ setClientFeedba
             date: new Date().toISOString(),
         };
 
-        setTimeout(() => {
-            setClientFeedback(prev => [newFeedback, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setTimeout(async () => {
+            try {
+                if (createFeedback) {
+                    await createFeedback(newFeedback);
+                } else {
+                    setClientFeedback(prev => [newFeedback, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                }
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+            }
             setIsSubmitting(false);
             setIsSubmitted(true);
         }, 1000);

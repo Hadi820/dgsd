@@ -248,9 +248,7 @@ const Leads: React.FC<LeadsProps> = ({
     };
 
     const handleMoveToFollowUp = (leadId: string) => {
-        setLeads(prev => prev.map(l => 
-            l.id === leadId ? { ...l, status: LeadStatus.FOLLOW_UP } : l
-        ));
+        updateLead(leadId, { status: LeadStatus.FOLLOW_UP }).catch(console.error);
         showNotification('Prospek dipindahkan ke "Menunggu Follow Up".');
     };
 
@@ -345,9 +343,8 @@ const Leads: React.FC<LeadsProps> = ({
         const totalProject = totalBeforeDiscount - finalDiscountAmount;
         const remainingPayment = totalProject - conversionForm.dp;
 
-        const newClientId = `CLI${Date.now()}`;
         const newClient: Client = {
-            id: newClientId, name: leadToConvert.name, email: conversionForm.email, phone: conversionForm.phone,
+            id: crypto.randomUUID(), name: leadToConvert.name, email: conversionForm.email, phone: conversionForm.phone,
             instagram: conversionForm.instagram, since: new Date().toISOString().split('T')[0], status: ClientStatus.ACTIVE,
             clientType: ClientType.DIRECT,
             lastContact: new Date().toISOString(),
@@ -355,7 +352,7 @@ const Leads: React.FC<LeadsProps> = ({
         };
 
         const physicalItemsFromPackage = selectedPackage.physicalItems.map((item, index) => ({
-            id: `pi-${Date.now()}-${index}`,
+            id: crypto.randomUUID(),
             type: 'Custom' as 'Custom',
             customName: item.name,
             details: item.name,
@@ -365,7 +362,7 @@ const Leads: React.FC<LeadsProps> = ({
         const printingCostFromPackage = physicalItemsFromPackage.reduce((sum, item) => sum + item.cost, 0);
 
         const newProject: Project = {
-            id: `PRJ${Date.now()}`, projectName: conversionForm.projectName, clientName: newClient.name, clientId: newClient.id,
+            id: crypto.randomUUID(), projectName: conversionForm.projectName, clientName: newClient.name, clientId: newClient.id,
             projectType: conversionForm.projectType, packageName: selectedPackage.name, packageId: selectedPackage.id,
             addOns: selectedAddOns, date: conversionForm.date, location: conversionForm.location, progress: 0,
             status: 'Dikonfirmasi', totalCost: totalProject, amountPaid: conversionForm.dp,
@@ -378,23 +375,26 @@ const Leads: React.FC<LeadsProps> = ({
             completedDigitalItems: [],
         };
 
-        setClients(prev => [newClient, ...prev]);
-        setProjects(prev => [newProject, ...prev]);
-        setLeads(prev => prev.map(l => l.id === leadToConvert.id ? { ...l, status: LeadStatus.CONVERTED } : l));
+        // Create client and project in database
+        Promise.all([
+            createClient(newClient),
+            createProject(newProject),
+            updateLead(leadToConvert.id, { status: LeadStatus.CONVERTED })
+        ]).catch(console.error);
 
         if (newProject.amountPaid > 0) {
             const newTransaction: Transaction = {
-                id: `TRN-DP-${newProject.id}`, date: new Date().toISOString().split('T')[0], description: `DP Proyek ${newProject.projectName}`,
+                id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], description: `DP Proyek ${newProject.projectName}`,
                 amount: newProject.amountPaid, type: TransactionType.INCOME, projectId: newProject.id, category: 'DP Proyek',
                 method: 'Transfer Bank', pocketId: 'POC005', cardId: conversionForm.dpDestinationCardId,
             };
-            setTransactions(prev => [...prev, newTransaction].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            createTransaction(newTransaction).catch(console.error);
             setCards(prev => prev.map(c => c.id === conversionForm.dpDestinationCardId ? { ...c, balance: c.balance + newProject.amountPaid } : c));
             setPockets(prev => prev.map(p => p.id === 'POC005' ? { ...p, amount: p.amount + newProject.amountPaid } : p));
         }
 
         if (promoCode) {
-            setPromoCodes(prev => prev.map(p => p.id === promoCode.id ? { ...p, usageCount: p.usageCount + 1 } : p));
+            updatePromoCode(promoCode.id, { usageCount: promoCode.usageCount + 1 }).catch(console.error);
         }
         
         showNotification(`Prospek berhasil dikonversi menjadi klien baru.`);
@@ -410,7 +410,7 @@ const Leads: React.FC<LeadsProps> = ({
     const handleAddLeadSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const newLead: Lead = {
-            id: `LEAD-MANUAL-${Date.now()}`,
+            id: crypto.randomUUID(),
             name: newLeadForm.name,
             contactChannel: newLeadForm.contactChannel,
             location: newLeadForm.location,
@@ -418,7 +418,7 @@ const Leads: React.FC<LeadsProps> = ({
             date: new Date().toISOString().split('T')[0],
             notes: newLeadForm.notes,
         };
-        setLeads(prev => [newLead, ...prev]);
+        createLead(newLead).catch(console.error);
         setIsAddModalOpen(false);
         setNewLeadForm(initialNewLeadFormState);
         showNotification(`Prospek baru "${newLead.name}" berhasil ditambahkan.`);
@@ -431,16 +431,15 @@ const Leads: React.FC<LeadsProps> = ({
     
     const handleUpdateLead = () => {
         if (!selectedLead) return;
-        const updatedLead = { ...selectedLead, notes: editedLeadNotes };
-        setLeads(prev => prev.map(l => l.id === updatedLead.id ? updatedLead : l));
+        updateLead(selectedLead.id, { notes: editedLeadNotes }).catch(console.error);
         showNotification("Prospek berhasil diperbarui.");
         setIsEditingLead(false);
-        setSelectedLead(updatedLead);
+        setSelectedLead({ ...selectedLead, notes: editedLeadNotes });
     };
     
     const handleDeleteLead = (leadId: string) => {
         if (window.confirm("Yakin ingin menghapus prospek ini secara permanen?")) {
-            setLeads(prev => prev.filter(l => l.id !== leadId));
+            deleteLead(leadId).catch(console.error);
             handleCloseLeadDetail();
             showNotification("Prospek berhasil dihapus.");
         }

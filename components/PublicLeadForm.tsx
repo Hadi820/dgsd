@@ -6,9 +6,10 @@ interface PublicLeadFormProps {
     setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
     userProfile: Profile;
     showNotification: (message: string) => void;
+    createLead?: (lead: Omit<Lead, 'id'>) => Promise<Lead>;
 }
 
-const PublicLeadForm: React.FC<PublicLeadFormProps> = ({ setLeads, userProfile }) => {
+const PublicLeadForm: React.FC<PublicLeadFormProps> = ({ setLeads, userProfile, createLead }) => {
     const [formState, setFormState] = useState({
         name: '',
         eventType: userProfile.projectTypes[0] || '',
@@ -34,7 +35,7 @@ const PublicLeadForm: React.FC<PublicLeadFormProps> = ({ setLeads, userProfile }
         const notes = `Jenis Acara: ${formState.eventType}\nTanggal Acara: ${new Date(formState.eventDate).toLocaleDateString('id-ID')}\nLokasi Acara: ${formState.eventLocation}`;
 
         const newLead: Lead = {
-            id: `LEAD-FORM-${Date.now()}`,
+            id: crypto.randomUUID(),
             name: formState.name,
             contactChannel: ContactChannel.WEBSITE, // Since it's from a web form
             location: formState.eventLocation,
@@ -43,9 +44,16 @@ const PublicLeadForm: React.FC<PublicLeadFormProps> = ({ setLeads, userProfile }
             notes: notes
         };
         
-        // Simulate API call
-        setTimeout(() => {
-            setLeads(prev => [newLead, ...prev]);
+        setTimeout(async () => {
+            try {
+                if (createLead) {
+                    await createLead(newLead);
+                } else {
+                    setLeads(prev => [newLead, ...prev]);
+                }
+            } catch (error) {
+                console.error('Error creating lead:', error);
+            }
             setIsSubmitting(false);
             setIsSubmitted(true);
         }, 1000);

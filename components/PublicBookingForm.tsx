@@ -220,9 +220,8 @@ const PublicBookingForm: React.FC<PublicBookingFormProps> = ({
         const selectedAddOns = addOns.filter(addon => formData.selectedAddOnIds.includes(addon.id));
         const remainingPayment = totalProject - dpAmount;
 
-        const newClientId = `CLI${Date.now()}`;
         const newClient: Client = {
-            id: newClientId, name: formData.clientName, email: formData.email, phone: formData.phone, instagram: formData.instagram,
+            id: crypto.randomUUID(), name: formData.clientName, email: formData.email, phone: formData.phone, instagram: formData.instagram,
             since: new Date().toISOString().split('T')[0], status: ClientStatus.ACTIVE, 
             clientType: ClientType.DIRECT,
             lastContact: new Date().toISOString(),
@@ -230,7 +229,7 @@ const PublicBookingForm: React.FC<PublicBookingFormProps> = ({
         };
 
         const newProject: Project = {
-            id: `PRJ${Date.now()}`, projectName: formData.projectName || `Acara ${formData.clientName}`, clientName: newClient.name, clientId: newClient.id,
+            id: crypto.randomUUID(), projectName: formData.projectName || `Acara ${formData.clientName}`, clientName: newClient.name, clientId: newClient.id,
             projectType: formData.projectType, packageName: selectedPackage.name, packageId: selectedPackage.id, addOns: selectedAddOns,
             date: formData.date, location: formData.location, progress: 0, status: 'Dikonfirmasi',
             totalCost: totalProject, amountPaid: dpAmount,
@@ -240,7 +239,7 @@ const PublicBookingForm: React.FC<PublicBookingFormProps> = ({
         };
         
         const newLead: Lead = {
-            id: `LEAD-FORM-${Date.now()}`,
+            id: crypto.randomUUID(),
             name: newClient.name,
             contactChannel: ContactChannel.WEBSITE,
             location: newProject.location,
@@ -249,9 +248,16 @@ const PublicBookingForm: React.FC<PublicBookingFormProps> = ({
             notes: `Dikonversi secara otomatis dari formulir pemesanan publik. Proyek: ${newProject.projectName}. Klien ID: ${newClient.id}`
         };
 
-        setClients(prev => [newClient, ...prev]);
-        setProjects(prev => [newProject, ...prev]);
-        setLeads(prev => [newLead, ...prev]);
+        // Create in database
+        try {
+            await Promise.all([
+                setClients(prev => [newClient, ...prev]),
+                setProjects(prev => [newProject, ...prev]),
+                setLeads(prev => [newLead, ...prev])
+            ]);
+        } catch (error) {
+            console.error('Error saving booking:', error);
+        }
 
         if (promoCodeAppliedId) {
             setPromoCodes(prev => prev.map(p => p.id === promoCodeAppliedId ? { ...p, usageCount: p.usageCount + 1 } : p));
@@ -259,7 +265,7 @@ const PublicBookingForm: React.FC<PublicBookingFormProps> = ({
 
         if (dpAmount > 0) {
             const newTransaction: Transaction = {
-                id: `TRN-DP-${newProject.id}`, date: new Date().toISOString().split('T')[0], description: `DP Proyek ${newProject.projectName}`,
+                id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], description: `DP Proyek ${newProject.projectName}`,
                 amount: dpAmount, type: TransactionType.INCOME, projectId: newProject.id, category: 'DP Proyek',
                 method: 'Transfer Bank', pocketId: 'POC005', cardId: destinationCard.id,
             };

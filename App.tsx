@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ViewType, Client, Project, TeamMember, Transaction, Package, AddOn, TeamProjectPayment, Profile, FinancialPocket, TeamPaymentRecord, Lead, RewardLedgerEntry, User, Card, Asset, ClientFeedback, Contract, RevisionStatus, NavigationAction, Notification, SocialMediaPost, PromoCode, SOP } from './types';
-import { MOCK_CLIENTS, MOCK_PROJECTS, MOCK_TEAM_MEMBERS, MOCK_TRANSACTIONS, MOCK_PACKAGES, MOCK_ADDONS, MOCK_TEAM_PROJECT_PAYMENTS, MOCK_USER_PROFILE, MOCK_FINANCIAL_POCKETS, MOCK_TEAM_PAYMENT_RECORDS, MOCK_LEADS, MOCK_REWARD_LEDGER_ENTRIES, MOCK_USERS, MOCK_CARDS, MOCK_ASSETS, MOCK_CLIENT_FEEDBACK, MOCK_CONTRACTS, MOCK_NOTIFICATIONS, MOCK_SOCIAL_MEDIA_POSTS, MOCK_PROMO_CODES, MOCK_SOPS, HomeIcon, FolderKanbanIcon, UsersIcon, DollarSignIcon, PlusIcon } from './constants';
+import { useSupabaseData } from './hooks/useSupabaseData';
+import { HomeIcon, FolderKanbanIcon, UsersIcon, DollarSignIcon, PlusIcon } from './constants';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Leads from './components/Leads';
@@ -27,6 +28,27 @@ import FreelancerPortal from './components/FreelancerPortal';
 import SocialPlanner from './components/SocialPlanner';
 import PromoCodes from './components/PromoCodes';
 import SOPManagement from './components/SOP';
+
+// Loading component
+const LoadingScreen: React.FC = () => (
+  <div className="flex items-center justify-center min-h-screen bg-brand-bg">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-accent mx-auto mb-4"></div>
+      <p className="text-brand-text-secondary">Memuat data...</p>
+    </div>
+  </div>
+);
+
+// Error component
+const ErrorScreen: React.FC<{ error: string; onRetry: () => void }> = ({ error, onRetry }) => (
+  <div className="flex items-center justify-center min-h-screen bg-brand-bg p-4">
+    <div className="text-center bg-brand-surface p-8 rounded-2xl shadow-lg border border-brand-border max-w-md">
+      <h2 className="text-xl font-bold text-brand-danger mb-4">Terjadi Kesalahan</h2>
+      <p className="text-brand-text-secondary mb-6">{error}</p>
+      <button onClick={onRetry} className="button-primary">Coba Lagi</button>
+    </div>
+  </div>
+);
 
 const AccessDenied: React.FC<{onBackToDashboard: () => void}> = ({ onBackToDashboard }) => (
     <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -109,6 +131,46 @@ const App: React.FC = () => {
   const [route, setRoute] = useState(window.location.hash);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // Use Supabase data hook
+  const {
+    // Data
+    users, clients, projects, packages, addOns, teamMembers, transactions,
+    leads, cards, pockets, teamProjectPayments, teamPaymentRecords,
+    rewardLedgerEntries, assets, contracts, clientFeedback, notifications,
+    socialMediaPosts, promoCodes, sops, profile,
+    
+    // State setters (for backward compatibility)
+    setUsers, setClients, setProjects, setPackages, setAddOns, setTeamMembers,
+    setTransactions, setLeads, setCards, setPockets, setTeamProjectPayments,
+    setTeamPaymentRecords, setRewardLedgerEntries, setAssets, setContracts,
+    setClientFeedback, setNotifications, setSocialMediaPosts, setPromoCodes,
+    setSops, setProfile,
+    
+    // CRUD operations
+    createClient, updateClient, deleteClient,
+    createProject, updateProject, deleteProject,
+    createTransaction, updateTransaction, deleteTransaction,
+    createLead, updateLead, deleteLead,
+    createPackage, updatePackage, deletePackage,
+    createAddOn, updateAddOn, deleteAddOn,
+    createTeamMember, updateTeamMember, deleteTeamMember,
+    createCard, updateCard, deleteCard,
+    createAsset, updateAsset, deleteAsset,
+    createContract, updateContract, deleteContract,
+    createFeedback,
+    createNotification, markNotificationAsRead, markAllNotificationsAsRead,
+    createSocialMediaPost, updateSocialMediaPost, deleteSocialMediaPost,
+    createPromoCode, updatePromoCode, deletePromoCode,
+    createSOP, updateSOP, deleteSOP,
+    updateProfile,
+    createUser, updateUser, deleteUser,
+    
+    // Auth & loading
+    signIn,
+    loading,
+    error,
+    refetch
+  } = useSupabaseData();
   useEffect(() => {
     const handleHashChange = () => {
         setRoute(window.location.hash);
@@ -117,28 +179,46 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Lifted State for global management and integration
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(JSON.stringify(MOCK_USERS)));
-  const [clients, setClients] = useState<Client[]>(() => JSON.parse(JSON.stringify(MOCK_CLIENTS)));
-  const [projects, setProjects] = useState<Project[]>(() => JSON.parse(JSON.stringify(MOCK_PROJECTS)));
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => JSON.parse(JSON.stringify(MOCK_TEAM_MEMBERS)));
-  const [transactions, setTransactions] = useState<Transaction[]>(() => JSON.parse(JSON.stringify(MOCK_TRANSACTIONS)));
-  const [packages, setPackages] = useState<Package[]>(() => JSON.parse(JSON.stringify(MOCK_PACKAGES)));
-  const [addOns, setAddOns] = useState<AddOn[]>(() => JSON.parse(JSON.stringify(MOCK_ADDONS)));
-  const [teamProjectPayments, setTeamProjectPayments] = useState<TeamProjectPayment[]>(() => JSON.parse(JSON.stringify(MOCK_TEAM_PROJECT_PAYMENTS)));
-  const [teamPaymentRecords, setTeamPaymentRecords] = useState<TeamPaymentRecord[]>(() => JSON.parse(JSON.stringify(MOCK_TEAM_PAYMENT_RECORDS)));
-  const [pockets, setPockets] = useState<FinancialPocket[]>(() => JSON.parse(JSON.stringify(MOCK_FINANCIAL_POCKETS)));
-  const [profile, setProfile] = useState<Profile>(() => JSON.parse(JSON.stringify(MOCK_USER_PROFILE)));
-  const [leads, setLeads] = useState<Lead[]>(() => JSON.parse(JSON.stringify(MOCK_LEADS)));
-  const [rewardLedgerEntries, setRewardLedgerEntries] = useState<RewardLedgerEntry[]>(() => JSON.parse(JSON.stringify(MOCK_REWARD_LEDGER_ENTRIES)));
-  const [cards, setCards] = useState<Card[]>(() => JSON.parse(JSON.stringify(MOCK_CARDS)));
-  const [assets, setAssets] = useState<Asset[]>(() => JSON.parse(JSON.stringify(MOCK_ASSETS)));
-  const [contracts, setContracts] = useState<Contract[]>(() => JSON.parse(JSON.stringify(MOCK_CONTRACTS)));
-  const [clientFeedback, setClientFeedback] = useState<ClientFeedback[]>(() => JSON.parse(JSON.stringify(MOCK_CLIENT_FEEDBACK)));
-  const [notifications, setNotifications] = useState<Notification[]>(() => JSON.parse(JSON.stringify(MOCK_NOTIFICATIONS)));
-  const [socialMediaPosts, setSocialMediaPosts] = useState<SocialMediaPost[]>(() => JSON.parse(JSON.stringify(MOCK_SOCIAL_MEDIA_POSTS)));
-  const [promoCodes, setPromoCodes] = useState<PromoCode[]>(() => JSON.parse(JSON.stringify(MOCK_PROMO_CODES)));
-  const [sops, setSops] = useState<SOP[]>(() => JSON.parse(JSON.stringify(MOCK_SOPS)));
+  // Show loading screen while data is being fetched
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  // Show error screen if there's an error
+  if (error) {
+    return <ErrorScreen error={error} onRetry={refetch} />;
+  }
+
+  // Use default profile if none exists
+  const currentProfile = profile || {
+    fullName: 'Vena Pictures',
+    email: 'admin@venapictures.com',
+    phone: '+62812345678',
+    companyName: 'Vena Pictures',
+    website: 'https://venapictures.com',
+    address: 'Jakarta, Indonesia',
+    bankAccount: 'BCA 1234567890 a.n. Vena Pictures',
+    authorizedSigner: 'Admin Vena Pictures',
+    idNumber: '',
+    bio: 'Professional photography and videography services',
+    incomeCategories: ['DP Proyek', 'Pelunasan', 'Add-On'],
+    expenseCategories: ['Gaji Freelancer', 'Operasional', 'Peralatan'],
+    projectTypes: ['Pernikahan', 'Prewedding', 'Engagement', 'Birthday'],
+    eventTypes: ['Meeting Klien', 'Survey Lokasi', 'Libur', 'Workshop', 'Lainnya'],
+    assetCategories: ['Kamera', 'Lensa', 'Lighting', 'Audio', 'Aksesoris'],
+    sopCategories: ['Fotografi', 'Videografi', 'Editing', 'Administrasi'],
+    projectStatusConfig: [
+      { id: '1', name: 'Dikonfirmasi', color: '#3b82f6', subStatuses: [], note: '' },
+      { id: '2', name: 'Berlangsung', color: '#8b5cf6', subStatuses: [], note: '' },
+      { id: '3', name: 'Editing', color: '#f97316', subStatuses: [], note: '' },
+      { id: '4', name: 'Selesai', color: '#10b981', subStatuses: [], note: '' }
+    ],
+    notificationSettings: { newProject: true, paymentConfirmation: true, deadlineReminder: true },
+    securitySettings: { twoFactorEnabled: false },
+    briefingTemplate: 'Template briefing untuk tim',
+    termsAndConditions: '',
+    contractTemplate: ''
+  };
 
   const showNotification = (message: string, duration: number = 3000) => {
     setNotification(message);
@@ -147,7 +227,7 @@ const App: React.FC = () => {
     }, duration);
   };
 
-  const handleLoginSuccess = (user: User) => {
+  const handleLoginSuccess = async (user: User) => {
     setIsAuthenticated(true);
     setCurrentUser(user);
     setActiveView(ViewType.DASHBOARD);
@@ -158,12 +238,20 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  const handleMarkAsRead = (notificationId: string) => {
-    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await markNotificationAsRead(notificationId);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
   
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
 
   const handleNavigation = (view: ViewType, action?: NavigationAction, notificationId?: string) => {
@@ -177,108 +265,146 @@ const App: React.FC = () => {
   };
 
   const handleUpdateRevision = (projectId: string, revisionId: string, updatedData: { freelancerNotes: string, driveLink: string, status: RevisionStatus }) => {
-    setProjects(prevProjects => {
-        return prevProjects.map(p => {
-            if (p.id === projectId) {
-                const updatedRevisions = (p.revisions || []).map(r => {
-                    if (r.id === revisionId) {
-                        return { 
-                            ...r, 
-                            freelancerNotes: updatedData.freelancerNotes,
-                            driveLink: updatedData.driveLink,
-                            status: updatedData.status,
-                            completedDate: updatedData.status === RevisionStatus.COMPLETED ? new Date().toISOString() : r.completedDate,
-                        };
-                    }
-                    return r;
-                });
-                return { ...p, revisions: updatedRevisions };
-            }
-            return p;
+    const updatedProjects = projects.map(p => {
+      if (p.id === projectId) {
+        const updatedRevisions = (p.revisions || []).map(r => {
+          if (r.id === revisionId) {
+            return { 
+              ...r, 
+              freelancerNotes: updatedData.freelancerNotes,
+              driveLink: updatedData.driveLink,
+              status: updatedData.status,
+              completedDate: updatedData.status === RevisionStatus.COMPLETED ? new Date().toISOString() : r.completedDate,
+            };
+          }
+          return r;
         });
+        return { ...p, revisions: updatedRevisions };
+      }
+      return p;
     });
+    
+    // Update in database
+    const projectToUpdate = updatedProjects.find(p => p.id === projectId);
+    if (projectToUpdate) {
+      updateProject(projectId, { revisions: projectToUpdate.revisions }).catch(console.error);
+    }
+    
+    // Update local state immediately for better UX
+    setProjects(updatedProjects);
     showNotification("Update revisi telah berhasil dikirim.");
   };
 
-    const handleClientConfirmation = (projectId: string, stage: 'editing' | 'printing' | 'delivery') => {
-        setProjects(prevProjects => {
-            return prevProjects.map(p => {
-                if (p.id === projectId) {
-                    const updatedProject = { ...p };
-                    if (stage === 'editing') updatedProject.isEditingConfirmedByClient = true;
-                    if (stage === 'printing') updatedProject.isPrintingConfirmedByClient = true;
-                    if (stage === 'delivery') updatedProject.isDeliveryConfirmedByClient = true;
-                    return updatedProject;
-                }
-                return p;
-            });
+  const handleClientConfirmation = (projectId: string, stage: 'editing' | 'printing' | 'delivery') => {
+    const updatedProjects = projects.map(p => {
+      if (p.id === projectId) {
+        const updatedProject = { ...p };
+        if (stage === 'editing') updatedProject.isEditingConfirmedByClient = true;
+        if (stage === 'printing') updatedProject.isPrintingConfirmedByClient = true;
+        if (stage === 'delivery') updatedProject.isDeliveryConfirmedByClient = true;
+        return updatedProject;
+      }
+      return p;
+    });
+    
+    // Update in database
+    const projectToUpdate = updatedProjects.find(p => p.id === projectId);
+    if (projectToUpdate) {
+      const updates: Partial<Project> = {};
+      if (stage === 'editing') updates.isEditingConfirmedByClient = true;
+      if (stage === 'printing') updates.isPrintingConfirmedByClient = true;
+      if (stage === 'delivery') updates.isDeliveryConfirmedByClient = true;
+      updateProject(projectId, updates).catch(console.error);
+    }
+    
+    setProjects(updatedProjects);
+    showNotification("Konfirmasi telah diterima. Terima kasih!");
+  };
+  
+  const handleClientSubStatusConfirmation = async (projectId: string, subStatusName: string, note: string) => {
+    let project: Project | undefined;
+    const updatedProjects = projects.map(p => {
+      if (p.id === projectId) {
+        const confirmed = [...(p.confirmedSubStatuses || []), subStatusName];
+        const notes = { ...(p.clientSubStatusNotes || {}), [subStatusName]: note };
+        project = { ...p, confirmedSubStatuses: confirmed, clientSubStatusNotes: notes };
+        return project;
+      }
+      return p;
+    });
+    
+    setProjects(updatedProjects);
+    
+    // Update in database
+    if (project) {
+      try {
+        await updateProject(projectId, {
+          confirmedSubStatuses: project.confirmedSubStatuses,
+          clientSubStatusNotes: project.clientSubStatusNotes
         });
-        showNotification("Konfirmasi telah diterima. Terima kasih!");
-    };
+        
+        // Create notification
+        const newNotification: Omit<Notification, 'id'> = {
+          title: 'Catatan Klien Baru',
+          message: `Klien ${project.clientName} memberikan catatan pada sub-status "${subStatusName}" di proyek "${project.projectName}".`,
+          timestamp: new Date().toISOString(),
+          isRead: false,
+          icon: 'comment',
+          link: {
+            view: ViewType.PROJECTS,
+            action: { type: 'VIEW_PROJECT_DETAILS', id: projectId }
+          }
+        };
+        await createNotification(newNotification);
+      } catch (error) {
+        console.error('Error updating project confirmation:', error);
+      }
+    }
     
-    const handleClientSubStatusConfirmation = (projectId: string, subStatusName: string, note: string) => {
-        let project: Project | undefined;
-        setProjects(prevProjects => {
-            const updatedProjects = prevProjects.map(p => {
-                if (p.id === projectId) {
-                    const confirmed = [...(p.confirmedSubStatuses || []), subStatusName];
-                    const notes = { ...(p.clientSubStatusNotes || {}), [subStatusName]: note };
-                    project = { ...p, confirmedSubStatuses: confirmed, clientSubStatusNotes: notes };
-                    return project;
-                }
-                return p;
-            });
-            return updatedProjects;
-        });
-    
-        if (project) {
-            const newNotification: Notification = {
-                id: `NOTIF-NOTE-${Date.now()}`,
-                title: 'Catatan Klien Baru',
-                message: `Klien ${project.clientName} memberikan catatan pada sub-status "${subStatusName}" di proyek "${project.projectName}".`,
-                timestamp: new Date().toISOString(),
-                isRead: false,
-                icon: 'comment',
-                link: {
-                    view: ViewType.PROJECTS,
-                    action: { type: 'VIEW_PROJECT_DETAILS', id: projectId }
-                }
-            };
-            setNotifications(prev => [newNotification, ...prev]);
-        }
-    
-        showNotification(`Konfirmasi untuk "${subStatusName}" telah diterima.`);
-    };
-    
-    const handleSignContract = (contractId: string, signatureDataUrl: string, signer: 'vendor' | 'client') => {
-        setContracts(prevContracts => {
-            return prevContracts.map(c => {
-                if (c.id === contractId) {
-                    return {
-                        ...c,
-                        ...(signer === 'vendor' ? { vendorSignature: signatureDataUrl } : { clientSignature: signatureDataUrl })
-                    };
-                }
-                return c;
-            });
-        });
-        showNotification('Tanda tangan berhasil disimpan.');
-    };
-    
-    const handleSignInvoice = (projectId: string, signatureDataUrl: string) => {
-        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, invoiceSignature: signatureDataUrl } : p));
-        showNotification('Invoice berhasil ditandatangani.');
-    };
-    
-    const handleSignTransaction = (transactionId: string, signatureDataUrl: string) => {
-        setTransactions(prev => prev.map(t => t.id === transactionId ? { ...t, vendorSignature: signatureDataUrl } : t));
-        showNotification('Kuitansi berhasil ditandatangani.');
-    };
-    
-    const handleSignPaymentRecord = (recordId: string, signatureDataUrl: string) => {
-        setTeamPaymentRecords(prev => prev.map(r => r.id === recordId ? { ...r, vendorSignature: signatureDataUrl } : r));
-        showNotification('Slip pembayaran berhasil ditandatangani.');
-    };
+    showNotification(`Konfirmasi untuk "${subStatusName}" telah diterima.`);
+  };
+  
+  const handleSignContract = async (contractId: string, signatureDataUrl: string, signer: 'vendor' | 'client') => {
+    try {
+      const updates: Partial<Contract> = {};
+      if (signer === 'vendor') {
+        updates.vendorSignature = signatureDataUrl;
+      } else {
+        updates.clientSignature = signatureDataUrl;
+      }
+      
+      await updateContract(contractId, updates);
+      showNotification('Tanda tangan berhasil disimpan.');
+    } catch (error) {
+      console.error('Error signing contract:', error);
+      showNotification('Gagal menyimpan tanda tangan.');
+    }
+  };
+  
+  const handleSignInvoice = async (projectId: string, signatureDataUrl: string) => {
+    try {
+      await updateProject(projectId, { invoiceSignature: signatureDataUrl });
+      showNotification('Invoice berhasil ditandatangani.');
+    } catch (error) {
+      console.error('Error signing invoice:', error);
+      showNotification('Gagal menandatangani invoice.');
+    }
+  };
+  
+  const handleSignTransaction = async (transactionId: string, signatureDataUrl: string) => {
+    try {
+      await updateTransaction(transactionId, { vendorSignature: signatureDataUrl });
+      showNotification('Kuitansi berhasil ditandatangani.');
+    } catch (error) {
+      console.error('Error signing transaction:', error);
+      showNotification('Gagal menandatangani kuitansi.');
+    }
+  };
+  
+  const handleSignPaymentRecord = (recordId: string, signatureDataUrl: string) => {
+    setTeamPaymentRecords(prev => prev.map(r => r.id === recordId ? { ...r, vendorSignature: signatureDataUrl } : r));
+    showNotification('Slip pembayaran berhasil ditandatangani.');
+  };
 
 
   const hasPermission = (view: ViewType) => {
@@ -309,7 +435,7 @@ const App: React.FC = () => {
           clientFeedback={clientFeedback}
           contracts={contracts}
           currentUser={currentUser}
-          projectStatusConfig={profile.projectStatusConfig}
+          projectStatusConfig={currentProfile.projectStatusConfig}
         />;
       case ViewType.PROSPEK:
         return <Leads
@@ -318,7 +444,7 @@ const App: React.FC = () => {
             projects={projects} setProjects={setProjects}
             packages={packages} addOns={addOns}
             transactions={transactions} setTransactions={setTransactions}
-            userProfile={profile} showNotification={showNotification}
+            userProfile={currentProfile} showNotification={showNotification}
             cards={cards} setCards={setCards}
             pockets={pockets} setPockets={setPockets}
             promoCodes={promoCodes} setPromoCodes={setPromoCodes}
@@ -366,7 +492,7 @@ const App: React.FC = () => {
             setTeamPaymentRecords={setTeamPaymentRecords}
             transactions={transactions}
             setTransactions={setTransactions}
-            userProfile={profile}
+            userProfile={currentProfile}
             showNotification={showNotification}
             initialAction={initialAction}
             setInitialAction={setInitialAction}
@@ -374,7 +500,7 @@ const App: React.FC = () => {
             setProjects={setProjects}
             rewardLedgerEntries={rewardLedgerEntries}
             setRewardLedgerEntries={setRewardLedgerEntries}
-            pockets={pockets}
+            profile={currentProfile}
             setPockets={setPockets}
             cards={cards}
             setCards={setCards}
@@ -386,7 +512,7 @@ const App: React.FC = () => {
           transactions={transactions} setTransactions={setTransactions}
           pockets={pockets} setPockets={setPockets}
           projects={projects}
-          profile={profile}
+          profile={currentProfile}
           cards={cards} setCards={setCards}
           teamMembers={teamMembers}
           rewardLedgerEntries={rewardLedgerEntries}
@@ -394,27 +520,27 @@ const App: React.FC = () => {
       case ViewType.PACKAGES:
         return <Packages packages={packages} setPackages={setPackages} addOns={addOns} setAddOns={setAddOns} projects={projects} />;
       case ViewType.ASSETS:
-        return <Assets assets={assets} setAssets={setAssets} profile={profile} showNotification={showNotification} />;
+        return <Assets assets={assets} setAssets={setAssets} profile={currentProfile} showNotification={showNotification} />;
       case ViewType.CONTRACTS:
         return <Contracts 
             contracts={contracts} setContracts={setContracts}
-            clients={clients} projects={projects} profile={profile}
+            clients={clients} projects={projects} profile={currentProfile}
             showNotification={showNotification}
             initialAction={initialAction} setInitialAction={setInitialAction}
             packages={packages}
             onSignContract={handleSignContract}
         />;
       case ViewType.SOP:
-        return <SOPManagement sops={sops} setSops={setSops} profile={profile} showNotification={showNotification} />;
+        return <SOPManagement sops={sops} setSops={setSops} profile={currentProfile} showNotification={showNotification} />;
       case ViewType.SETTINGS:
         return <Settings 
-          profile={profile} setProfile={setProfile} 
+          profile={currentProfile} setProfile={setProfile} 
           transactions={transactions} projects={projects}
           users={users} setUsers={setUsers}
           currentUser={currentUser}
         />;
       case ViewType.CALENDAR:
-        return <CalendarView projects={projects} setProjects={setProjects} teamMembers={teamMembers} profile={profile} />;
+        return <CalendarView projects={projects} setProjects={setProjects} teamMembers={teamMembers} profile={currentProfile} />;
       case ViewType.CLIENT_REPORTS:
         return <ClientReports 
             clients={clients}
@@ -444,7 +570,7 @@ const App: React.FC = () => {
           clientFeedback={clientFeedback}
           contracts={contracts}
           currentUser={currentUser}
-          projectStatusConfig={profile.projectStatusConfig}
+          projectStatusConfig={currentProfile.projectStatusConfig}
         />;
     }
   };
@@ -457,7 +583,7 @@ const App: React.FC = () => {
         packages={packages}
         addOns={addOns}
         setTransactions={setTransactions}
-        userProfile={profile}
+        userProfile={currentProfile}
         cards={cards}
         setCards={setCards}
         pockets={pockets}
@@ -471,7 +597,7 @@ const App: React.FC = () => {
   if (route.startsWith('#/public-lead-form')) {
     return <PublicLeadForm 
         setLeads={setLeads}
-        userProfile={profile}
+        userProfile={currentProfile}
         showNotification={showNotification}
     />;
   }
@@ -494,7 +620,7 @@ const App: React.FC = () => {
         showNotification={showNotification} 
         contracts={contracts} 
         transactions={transactions}
-        profile={profile}
+        profile={currentProfile}
         packages={packages}
         onClientConfirmation={handleClientConfirmation}
         onClientSubStatusConfirmation={handleClientSubStatusConfirmation}
@@ -513,12 +639,12 @@ const App: React.FC = () => {
         showNotification={showNotification}
         onUpdateRevision={handleUpdateRevision}
         sops={sops}
-        profile={profile}
+        profile={currentProfile}
     />;
   }
   
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} users={users} />;
+    return <Login onLoginSuccess={handleLoginSuccess} users={users} signIn={signIn} />;
   }
 
   return (
